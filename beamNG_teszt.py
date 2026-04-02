@@ -10,12 +10,6 @@ from beamngpy import BeamNGpy, Scenario, Vehicle
 from beamngpy.sensors import Camera
 from beamngpy import ScenarioObject
 
-class BeamNGJSONFix(tuple):
-    def __str__(self):
-        return "[" + ", ".join(map(str, self)) + "]"
-    def __repr__(self):
-        return "[" + ", ".join(map(str, self)) + "]"
-
 bng_home = r'C:\Program Files\BeamNG\BeamNG.tech.v0.38.3.0'
 beamng = BeamNGpy('localhost', 64251, home=bng_home)
 
@@ -31,41 +25,51 @@ if not os.path.exists(csv_path):
 
 model = YOLO('D:/Egyetem/6.felev/Szakdoga1/Implementacio/FRDC_RDD/YOLOv10/weights/yolov10_x_best.pt')
 
-scenario = Scenario('automation_test_track', f'pothole_pilot_{random.randint(1, 10000)}') 
-thePlayer = Vehicle('thePlayer', 'covet', license='PROJEKT2')
+scenario_name = f'pothole_pilot_{random.randint(1, 10000)}'
+scenario = Scenario('automation_test_track', scenario_name)
+
+vehicle = Vehicle('ego_vehicle', 'covet', license='PROJEKT2')
 
 car_x = -294.787
 car_y = -255.694
 car_z = 118.813
-scenario.add_vehicle(thePlayer, pos=(car_x, car_y, car_z), rot_quat=(0.0, 0.0, -0.707, 0.707))
+scenario.add_vehicle(vehicle, pos=(car_x, car_y, car_z), rot_quat=(0.0, 0.0, -0.707, 0.707))
 
-pothole_models = [
-    '/levels/italy/art/shapes/potholes/p1/sceneJoin.dae',
-    '/levels/italy/art/shapes/potholes/p2/sceneJoin.dae',
-    '/levels/italy/art/shapes/potholes/p3/sceneJoin.dae'
-]
+start_x = car_x + 5  
+end_x = car_x + 30    
 
-start_x = car_x + 10  
-end_x = car_x + 60    
-
-for i in range(15):
+for i in range(5):
     pos_x = random.uniform(start_x, end_x)
     pos_y = random.uniform(car_y - 2.0, car_y + 2.0) 
-    pos_z = car_z + 0.1
+    pos_z = car_z + 0.07
 
-    selected_shape = random.choice(pothole_models)
-
-    pothole = ScenarioObject(
-        oid=f'thesis_pothole_{i}',
-        name=f'thesis_pothole_{i}',
+    pothole_visual = ScenarioObject(
+        oid=f'latvany_modell_{i}',
+        name=f'latvany_modell_{i}',
         otype='TSStatic',
         pos=(pos_x, pos_y, pos_z),
-        rot=BeamNGJSONFix((0, 0, 0, 1)),             
+        rot_quat=(0.0, 0.0, 0.0, 1.0),
         scale=(1.0, 1.0, 1.0),
-        shapeName=selected_shape
+        shapeName= '/levels/automation_test_track/art/shapes/scaneView.dae',
+        
+        collisionType='None', 
+        decalType='None'
     )
-    pothole.rot = BeamNGJSONFix((0, 0, 0, 1))
-    scenario.add_object(pothole)
+    scenario.add_object(pothole_visual)   
+
+    pothole_physics = ScenarioObject(
+        oid=f'fizika_modell_{i}',
+        name=f'fizika_modell_{i}',
+        otype='TSStatic',
+        pos=(pos_x, pos_y, pos_z),
+        rot_quat=(0.0, 0.0, 0.0, 1.0),
+        scale=(1.0, 1.0, 1.0),
+        shapeName= '/levels/automation_test_track/art/shapes/scaneSimplifiedModelForPhysics.dae',
+        
+        collisionType='Visible Mesh', 
+        decalType='None'
+    )
+    scenario.add_object(pothole_physics)
 
 img_counter = 0
 last_save_time = 0
@@ -83,7 +87,7 @@ try:
     print("Várakozás a rendszerre (5 mp)...")
     time.sleep(5)
 
-    camera_1 = Camera('Camera 1', beamng, vehicle=thePlayer, requested_update_time=0.05,
+    camera_1 = Camera('Camera 1', beamng, vehicle=vehicle, requested_update_time=0.05,
                   pos=(0.0, -0.477, 1.142), 
                   dir=(0, -1, 0), 
                   up=(0, 0, 1),
@@ -110,8 +114,8 @@ try:
             if len(results[0].boxes) > 0:
                 current_time = time.time()
                 if current_time - last_save_time > 2.0:
-                    thePlayer.sensors.poll()
-                    pos = thePlayer.state['pos']
+                    vehicle.sensors.poll()
+                    pos = vehicle.state['pos']
                     
                     annotated_frame = results[0].plot()
                     bgr_frame = cv2.cvtColor(annotated_frame, cv2.COLOR_RGB2BGR)
